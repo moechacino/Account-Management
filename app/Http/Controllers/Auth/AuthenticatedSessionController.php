@@ -16,6 +16,11 @@ class AuthenticatedSessionController extends Controller
     /**
      * Display the login view.
      */
+
+    public function index(): RedirectResponse
+    {
+        return to_route('auth.index');
+    }
     public function create(): Response
     {
         return Inertia::render('Auth/Login', [
