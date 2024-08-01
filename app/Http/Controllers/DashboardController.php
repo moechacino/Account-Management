@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use function Laravel\Prompts\password;
 use function PHPUnit\Framework\isNull;
 
 class DashboardController extends Controller
@@ -59,7 +60,7 @@ class DashboardController extends Controller
 
         $encryptedDataWithIv = base64_encode($iv . $encryptedData);
 
-        return  $encryptedDataWithIv;
+        return $encryptedDataWithIv;
     }
 
     private function decryption(string $encryptedDataWithIv, string $key): string
@@ -93,7 +94,7 @@ class DashboardController extends Controller
         $account = new Account();
         $account->title = $validatedData['title'];
         $account->credential = $validatedData['credential'];
-        $hashedPassword =  $this->encryption($validatedData['password'], $validatedData['keyPassword']);
+        $hashedPassword = $this->encryption($validatedData['password'], $validatedData['keyPassword']);
         $account->password = $hashedPassword;
         if ($validatedData['type'] === null) {
             $account->type = 'others';
@@ -113,7 +114,7 @@ class DashboardController extends Controller
             'keyPassword' => 'required|string',
         ]);
         $password = $this->decryption($validatedData['encryptedPassword'], $validatedData['keyPassword']);
-        if($password==""){
+        if ($password == "") {
             $password = $validatedData['encryptedPassword'];
         }
         return redirect()->back()->with('showedPassword', $password);
@@ -122,14 +123,24 @@ class DashboardController extends Controller
     public function updateAccount(Request $request, $id)
     {
         $validatedData = $request->validate([
-            'title'=> 'nullable|string|max:255',
+            'title' => 'nullable|string|max:255',
             'password' => 'nullable|string|max:100',
             'note' => 'nullable|string|max:1000',
             'type' => 'nullable|string|max:20',
+            'keyPassword' => 'required|string'
         ]);
 
         $account = Account::findOrFail($id);
-        $account->update($validatedData);
+
+        $filteredData = array_filter($validatedData, function ($value) {
+            return !is_null($value);
+        });
+
+        if (isset($filteredData['password']) && !is_null($filteredData['password'])) {
+            $filteredData['password'] = $this->encryption($filteredData['password'], $validatedData['keyPassword']);
+        }
+        $account->update($filteredData);
+
         return redirect()->back()->with('success', 'Account updated successfully.');
     }
 

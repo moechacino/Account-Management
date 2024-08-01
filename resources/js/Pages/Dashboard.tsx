@@ -32,7 +32,7 @@ export default function Dashboard() {
     const [detailToggle, setDetailToggle] = useState<boolean>(false)
 
     const [unlockedPassword, setUnlockedPassword] = useState<string>("")
-    const [showDetailToggle, setShowDetailToggle]=useState<boolean>(false)
+    const [showDetailToggle, setShowDetailToggle] = useState<boolean>(false)
     const [passwordInput, setPasswordInput] = useState<string>("")
     const [typeInput, setTypeInput] = useState<string>("")
     const [addAccountForm, setAddAccountForm] = useState<AccountData>(
@@ -117,15 +117,46 @@ export default function Dashboard() {
 
     function handleUnlockPassword(e: FormEvent) {
         e.preventDefault()
-        router.post('/unlock-password', {
-            encryptedPassword: dataDetail?.password,
-            keyPassword: passwordInput
-        }, {
-            onSuccess: (page: any) => {
+        if (editToggle) {
+            router.post('/check-password', {password: passwordInput}, {
+                onSuccess: (page: any) => {
+                    if (page.props.flash.message === "password match") {
+                        router.patch(`/dashboard/account/${selectedId}`, {
+                            ...updateAccountForm,
+                            keyPassword: passwordInput
+                        }, {
+                            onSuccess: () => {
+                                setDetailToggle(false)
+                                setEditToggle(false)
+                                setUpdateAccountForm({
+                                    title: "",
+                                    type: "",
+                                    note: "",
+                                    password: ""
+                                })
+                            },
+                            onError: () => alert("failed. check internet connection"),
+                        });
+                    } else {
+                        setDetailToggle(false)
+                        setEditToggle(false)
+                        setShowWrongPasswordAlert(true)
+                        setPasswordInput("")
+                    }
+                }
+            });
+        } else {
+            setDetailToggle(false)
+            router.post('/unlock-password', {
+                encryptedPassword: dataDetail?.password,
+                keyPassword: passwordInput
+            }, {
+                onSuccess: (page: any) => {
                     setUnlockedPassword(page.props.flash.showedPassword)
                     setShowDetailToggle(true)
-            }
-        })
+                }
+            })
+        }
     }
 
     function handleEditToggle(e: React.MouseEvent<HTMLButtonElement>) {
@@ -149,9 +180,6 @@ export default function Dashboard() {
         if (!updateAccountForm.title) {
             updateAccountForm.title = dataDetail?.title
         }
-        if (!updateAccountForm.password) {
-            updateAccountForm.password = dataDetail?.password
-        }
         if (!updateAccountForm.type) {
             if (!dataDetail?.type) {
                 updateAccountForm.type = 'others'
@@ -159,18 +187,7 @@ export default function Dashboard() {
                 updateAccountForm.type = dataDetail?.type
             }
         }
-        router.patch(`/dashboard/account/${selectedId}`, updateAccountForm, {
-            onSuccess: () => {
-                setEditToggle(false)
-                setUpdateAccountForm({
-                    title: "",
-                    type: "",
-                    note: "",
-                    password: ""
-                })
-            },
-            onError: () => alert("failed. check internet connection"),
-        })
+        setDetailToggle(true);
     }
 
     function handleDeleteAccount() {
@@ -219,13 +236,15 @@ export default function Dashboard() {
             setShowWrongPasswordAlert(false)
         }
         if (editRef.current && !editRef.current.contains(e.target as Node)) {
-            setEditToggle(false)
-            setUpdateAccountForm({
-                title: "",
-                type: "",
-                note: "",
-                password: ""
-            })
+            if (!detailToggle) {
+                setEditToggle(false)
+                setUpdateAccountForm({
+                    title: "",
+                    type: "",
+                    note: "",
+                    password: ""
+                })
+            }
         }
     }
 
@@ -475,7 +494,7 @@ export default function Dashboard() {
                             <div ref={editRef}
                                  className="bg-white border-2 rounded-2xl border-gc-gamboge h-fit w-4/5 sm:w-2/3 lg:w-1/2">
                                 <form onSubmit={handleSubmitEditAccount}
-                                      className="flex flex-col items-center justify-between h-full space-y-4" action="">
+                                      className="flex flex-col items-center justify-between h-full space-y-4">
                                     <div className="w-full">
                                         <div className="mt-4 mx-4 font-mono">
                                             <div className="flex flex-col">
@@ -544,7 +563,7 @@ export default function Dashboard() {
                 detailToggle && (<>
                         <div className="fixed h-full mt-16 w-full z-20 bg-black opacity-25">
                         </div>
-                        <div className="fixed flex flex-col justify-center items-center h-full w-full z-30">
+                        <div className="fixed flex flex-col justify-center items-center h-full w-full z-40">
                             <div ref={detailRef}
                                  className="bg-white border-2 rounded-2xl border-gc-gamboge h-fit w-4/5 sm:w-2/3 lg:w-1/2">
                                 <form onSubmit={handleUnlockPassword}
@@ -584,7 +603,8 @@ export default function Dashboard() {
                                         <p className="text-sm">
                                             if your <span className="font-bold">
                                             PASSWORD
-                                        </span>  is un-readable (raiso diwoco), then the password you entered is incorrect
+                                        </span> is un-readable (raiso diwoco), then the password you entered is
+                                            incorrect
                                         </p>
                                     </div>
                                     <div className="max-w-full flex flex-col mb-2 mx-4 font-mono">
@@ -644,7 +664,7 @@ export default function Dashboard() {
                                 </div>
                                 <button onClick={() => {
                                     setSelectedId(null)
-                                   setShowDetailToggle(false)
+                                    setShowDetailToggle(false)
                                     setPasswordInput("")
                                 }} type="submit"
                                         className="mb-4 bg-gc-gamboge rounded-b-xl  w-full h-10 font-bold text-white font-mono tracking-widest">
